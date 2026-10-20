@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
         {
             e.HasKey(p => p.PedidoSVL);
             e.Property(p => p.PedidoSVL).ValueGeneratedNever();
+            e.HasMany(p => p.Links).WithOne().HasForeignKey(l => l.PedidoSVL);
         });
     }
 }
