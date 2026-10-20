@@ -1,5 +1,6 @@
 using ApiFoundation.Api.Data;          
-using ApiFoundation.Api.Models;        
+using ApiFoundation.Api.Models;
+using ApiFoundation.Api.Services;
 using Microsoft.EntityFrameworkCore;   
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +11,9 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=app.db"));
+
+builder.Services.AddScoped<IArmazenamentoArquivos, ArmazenamentoArquivosFake>();
+builder.Services.AddScoped<ProcessadorArquivosProducao>();
 
 var app = builder.Build();
 
