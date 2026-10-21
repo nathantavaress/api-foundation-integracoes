@@ -9,11 +9,13 @@ public class ProcessadorArquivosProducao
 {
     private readonly AppDbContext _db;
     private readonly IArmazenamentoArquivos _armazenamento;
+    private readonly ILeomobApiClient _leomob;
 
-    public ProcessadorArquivosProducao(AppDbContext db, IArmazenamentoArquivos armazenamento)
+    public ProcessadorArquivosProducao(AppDbContext db, IArmazenamentoArquivos armazenamento, ILeomobApiClient leomob)
     {
         _db = db;
         _armazenamento = armazenamento;
+        _leomob = leomob;
     }
 
     public async Task<List<ResultadoServico>> ProcessarAsync(ArquivosProducaoRequest request)
@@ -69,6 +71,12 @@ public class ProcessadorArquivosProducao
 
         await _db.SaveChangesAsync();
 
+        if (pedido.Tipo == TipoPedido.ZMOB)
+        {
+            var urls = novos.Select(n => n.Url).ToList();
+            await NotificarLeomobAsync(pedido, urls);
+        }
+
         return Resultado(servico, StatusResultado.Processado, "Serviço processado com sucesso.");
     }
 
@@ -84,4 +92,38 @@ public class ProcessadorArquivosProducao
 
     private static ResultadoServico Resultado(ServicoRequest s, StatusResultado status, string mensagem) =>
         new() { PedidoSVL = s.PedidoSVL, ServiceId = s.ServiceId, Status = status, Mensagem = mensagem };
+
+    private async Task NotificarLeomobAsync(Pedido pedido, List<string> urls)
+    {
+        var notificacao = new Notificacao 
+        {
+            Status = StatusNotificacao.INICIAL,
+            Tentativas = 0,
+            DtCriacao = DateTime.UtcNow
+        };
+
+        await _db.Notificacoes.AddAsync(notificacao);
+        await _db.SaveChangesAsync();
+
+        // 1. Criar um Notificacao com Status = INICIAL, Tentativas = 0, DtCriacao = DateTime.UtcNow
+        //    Adicionar em _db.Notificacoes e salvar (SaveChangesAsync)
+
+        try
+        {
+            await _leomob.NotificarAsync(pedido.PedidoSVL, urls);
+            notificacao.Status = StatusNotificacao.CONCLUIDO;
+
+            // 2. Chamar _leomob.NotificarAsync(pedido.PedidoSVL, urls)
+            // 3. Se deu certo: Status = CONCLUIDO
+        }
+        catch (Exception)
+        {
+            notificacao.Status = StatusNotificacao.PENDENTE;
+            notificacao.Tentativas++;
+            // 4. Se falhou: Status = PENDENTE e Tentativas++
+        }
+
+        await _db.SaveChangesAsync();
+        // 5. Salvar de novo (SaveChangesAsync)
+    }
 }
