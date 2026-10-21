@@ -32,6 +32,7 @@ public class ProcessadorArquivosProducao
 
     private async Task<ResultadoServico> ProcessarServicoAsync(ServicoRequest servico)
     {
+        // Regra 2: pedido inexistente falha só este serviço, os outros seguem
         var pedido = await _db.Pedidos.FindAsync(servico.PedidoSVL);
 
         if (pedido == null)
@@ -39,14 +40,19 @@ public class ProcessadorArquivosProducao
             return Resultado(servico, StatusResultado.Falha, "Pedido não encontrado.");
         }
 
+        // Regra 3: o ServiceId recebido precisa bater com o do pedido
         if (pedido.ServiceId != servico.ServiceId)
         {
             return Resultado(servico, StatusResultado.Falha, "ServiceId não corresponde ao pedido.");
         }
 
+        // Idempotência (regra 7): separa os links que já estão salvos dos que são novos
+
         var recebidos = ExtrairLinks(servico.Links);
         var existentes = await _db.Links.Where(l => l.PedidoSVL == pedido.PedidoSVL).ToListAsync();
         var novos = recebidos.Where(r => !existentes.Any(e => e.Categoria == r.Categoria && e.Url == r.Url)).ToList();
+
+        // Se não há nenhum link novo, o envio é repetido: não salva, não copia, não notifica
 
         if (novos.Count == 0)
         {
@@ -63,13 +69,19 @@ public class ProcessadorArquivosProducao
             };
             _db.Links.Add(link);
 
+            // Regras 4 e 5: ZLPL e ZCVS copiam o arquivo; ZMOB só guarda o link
+
             if (pedido.Tipo != TipoPedido.ZMOB)
             {
                 await _armazenamento.CopiarAsync(url);
             }
         }
 
+        // Salva uma vez só: todos os links numa transação (ou entram todos, ou nenhum)
+
         await _db.SaveChangesAsync();
+
+        // Regra 6: só pedidos ZMOB notificam a LeomobAPI
 
         if (pedido.Tipo == TipoPedido.ZMOB)
         {
@@ -115,7 +127,7 @@ public class ProcessadorArquivosProducao
         }
         catch (Exception)
         {
-            // Falhou: o reprocessamento tenta de novo depois
+            // Falhou: vira PENDENTE e o endpoint de reprocessar tenta de novo depois
             notificacao.Status = StatusNotificacao.PENDENTE;
             notificacao.Tentativas++;
         }

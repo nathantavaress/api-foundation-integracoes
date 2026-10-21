@@ -15,8 +15,11 @@ public class AppDbContext : DbContext
     {
         modelBuilder.Entity<Pedido>(e =>
         {
+            // PedidoSVL é a chave primária e vem do SVL, por isso o banco não gera o valor
+
             e.HasKey(p => p.PedidoSVL);
             e.Property(p => p.PedidoSVL).ValueGeneratedNever();
+            // Relação: um Pedido tem muitos Links; a chave estrangeira é LinkArquivo.PedidoSVL
             e.HasMany(p => p.Links).WithOne().HasForeignKey(l => l.PedidoSVL);
         });
     }
