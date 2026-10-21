@@ -15,6 +15,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IArmazenamentoArquivos, ArmazenamentoArquivosFake>();
 builder.Services.AddScoped<ProcessadorArquivosProducao>();
 builder.Services.AddScoped<ILeomobApiClient, LeomobApiClientFake>();
+builder.Services.AddScoped<ReprocessadorNotificacoes>();
 
 var app = builder.Build();
 

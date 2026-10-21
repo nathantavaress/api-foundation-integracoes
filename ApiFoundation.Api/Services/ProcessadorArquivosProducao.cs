@@ -95,8 +95,11 @@ public class ProcessadorArquivosProducao
 
     private async Task NotificarLeomobAsync(Pedido pedido, List<string> urls)
     {
-        var notificacao = new Notificacao 
+        // Grava INICIAL antes de chamar a API: se algo quebrar no meio,
+        // fica registrado que existe uma notificação a fazer
+        var notificacao = new Notificacao
         {
+            PedidoSVL = pedido.PedidoSVL,
             Status = StatusNotificacao.INICIAL,
             Tentativas = 0,
             DataCriacao = DateTime.UtcNow
@@ -105,25 +108,18 @@ public class ProcessadorArquivosProducao
         await _db.Notificacoes.AddAsync(notificacao);
         await _db.SaveChangesAsync();
 
-        // 1. Criar um Notificacao com Status = INICIAL, Tentativas = 0, DataCriacao = DateTime.UtcNow
-        //    Adicionar em _db.Notificacoes e salvar (SaveChangesAsync)
-
         try
         {
             await _leomob.NotificarAsync(pedido.PedidoSVL, urls);
             notificacao.Status = StatusNotificacao.CONCLUIDO;
-
-            // 2. Chamar _leomob.NotificarAsync(pedido.PedidoSVL, urls)
-            // 3. Se deu certo: Status = CONCLUIDO
         }
         catch (Exception)
         {
+            // Falhou: o reprocessamento tenta de novo depois
             notificacao.Status = StatusNotificacao.PENDENTE;
             notificacao.Tentativas++;
-            // 4. Se falhou: Status = PENDENTE e Tentativas++
         }
 
         await _db.SaveChangesAsync();
-        // 5. Salvar de novo (SaveChangesAsync)
     }
 }
