@@ -99,13 +99,13 @@ public class ProcessadorArquivosProducao
         {
             Status = StatusNotificacao.INICIAL,
             Tentativas = 0,
-            DtCriacao = DateTime.UtcNow
+            DataCriacao = DateTime.UtcNow
         };
 
         await _db.Notificacoes.AddAsync(notificacao);
         await _db.SaveChangesAsync();
 
-        // 1. Criar um Notificacao com Status = INICIAL, Tentativas = 0, DtCriacao = DateTime.UtcNow
+        // 1. Criar um Notificacao com Status = INICIAL, Tentativas = 0, DataCriacao = DateTime.UtcNow
         //    Adicionar em _db.Notificacoes e salvar (SaveChangesAsync)
 
         try

@@ -6,5 +6,5 @@ public class Notificacao
 	public StatusNotificacao Status { get; set; }
 	public int PedidoSVL { get; set; }
 	public int Tentativas { get; set; }
-	public DateTime DtCriacao { get; set; }
+	public DateTime DataCriacao { get; set; }
 }
